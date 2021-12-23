@@ -1,0 +1,66 @@
+version: '3'
+
+networks:
+  shared:
+    external: false
+
+services:
+  mysql_db:
+    domainname: mysql_db
+    image: mariadb
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: izanyat_marketplace
+      MYSQL_USER: izanyat
+      MYSQL_PASSWORD: zh!SOWVAJTJ0qS]B
+    volumes:
+      - dbdata:/var/lib/mysql
+    networks:
+      - shared
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    domainname: phpmyadmin
+    links:
+      - mysql_db
+    environment:
+      PMA_HOST: mysql_db
+      PMA_PORT: 3306
+      PMA_ARBITRARY: 1
+      MAX_EXECUTION_TIME: 140000
+    restart: always
+    ports:
+      - "${PMA_PORT}:80"
+    networks:
+      - shared
+
+  php_izanyat_backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    domainname: php_izanyat_backend
+    command: "bash /app/deploy/run.sh >> run_log.log"
+    volumes:
+      - ./:/app
+    depends_on:
+      - mysql_db
+    networks:
+      - shared
+
+  nginx:
+    image: nginx:1.14.2
+    ports:
+      - "${NGINX_PORT}:80"
+    domainname: nginx
+    volumes:
+      - "./deploy/nginx/fastcgi.conf:/etc/nginx/fastcgi.conf"
+      - "./deploy/nginx/nginx.conf:/etc/nginx/conf.d/default.conf"
+      - "./:/app"
+    links:
+      - php_izanyat_backend
+    networks:
+      - shared
+
+volumes:
+  dbdata:
+    external: false
